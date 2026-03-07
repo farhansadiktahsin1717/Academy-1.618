@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from decouple import config
-from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -98,8 +98,24 @@ WSGI_APPLICATION = 'academy.wsgi.application'
 
 INTERNAL_IPS = ['127.0.0.1']
 
-USE_POSTGRES = _to_bool(config('USE_POSTGRES', default='false'))
-if USE_POSTGRES and config('dbname', default=None):
+DATABASE_URL = config('DATABASE_URL', default='').strip() or config('POSTGRES_URL', default='').strip()
+USE_POSTGRES = _to_bool(config('USE_POSTGRES', default='false')) or bool(DATABASE_URL)
+
+if DATABASE_URL:
+    parsed_db = urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed_db.path.lstrip('/'),
+            'USER': parsed_db.username or '',
+            'PASSWORD': parsed_db.password or '',
+            'HOST': parsed_db.hostname or '',
+            'PORT': str(parsed_db.port or ''),
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {'sslmode': 'require'},
+        }
+    }
+elif USE_POSTGRES and config('dbname', default=None):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -108,6 +124,8 @@ if USE_POSTGRES and config('dbname', default=None):
             'PASSWORD': config('password'),
             'HOST': config('host'),
             'PORT': config('port'),
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {'sslmode': 'require'},
         }
     }
 else:
@@ -117,12 +135,6 @@ else:
             'NAME': BASE_DIR / 'academy.sqlite3',
         }
     }
-
-if PRODUCTION and SECRET_KEY == 'academy-1618-dev-secret-key':
-    raise ImproperlyConfigured('Set a strong SECRET_KEY in production.')
-
-if PRODUCTION and not USE_POSTGRES:
-    raise ImproperlyConfigured('Set USE_POSTGRES=true and provide PostgreSQL credentials in production.')
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -204,9 +216,8 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 if not DEBUG:
-    if not config('CLOUDINARY_URL', default='').strip():
-        raise ImproperlyConfigured('Set CLOUDINARY_URL in production for persistent media storage.')
-    STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
+    if config('CLOUDINARY_URL', default='').strip():
+        STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
 
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = _to_bool(config('SECURE_SSL_REDIRECT', default='true'))
