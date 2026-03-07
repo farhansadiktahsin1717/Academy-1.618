@@ -115,6 +115,7 @@ This project includes `vercel.json` and is ready for Django serverless deploymen
 - `password`
 - `host`
 - `port`
+- `CLOUDINARY_URL` (required for persistent media storage)
 
 3. Optional variables
 - `TIME_ZONE`
@@ -133,4 +134,4 @@ python manage.py migrate
 
 Notes:
 - Local SQLite files are excluded from deployment via `.vercelignore`.
-- Vercel filesystem is ephemeral; do not rely on local file writes for persistent media storage.
+- Vercel filesystem is ephemeral; production now enforces Cloudinary-backed media storage.

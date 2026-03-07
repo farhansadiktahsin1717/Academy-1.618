@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import timedelta
 
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,6 +24,7 @@ def _to_bool(value, default=True):
 SECRET_KEY = config('SECRET_KEY', default='academy-1618-dev-secret-key')
 IS_VERCEL = _to_bool(config('VERCEL', default=os.environ.get('VERCEL', 'false')))
 DEBUG = _to_bool(config('DEBUG', default='false' if IS_VERCEL else 'true'))
+PRODUCTION = IS_VERCEL and not DEBUG
 ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='127.0.0.1,localhost,.vercel.app').split(',') if host.strip()]
 
 VERCEL_URL = config('VERCEL_URL', default='').strip()
@@ -50,6 +52,8 @@ INSTALLED_APPS = [
     'djoser',
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
+    'cloudinary',
+    'cloudinary_storage',
     'users',
     'courses.apps.CoursesConfig',
     'enrollments.apps.EnrollmentsConfig',
@@ -94,7 +98,8 @@ WSGI_APPLICATION = 'academy.wsgi.application'
 
 INTERNAL_IPS = ['127.0.0.1']
 
-if _to_bool(config('USE_POSTGRES', default='false')) and config('dbname', default=None):
+USE_POSTGRES = _to_bool(config('USE_POSTGRES', default='false'))
+if USE_POSTGRES and config('dbname', default=None):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -113,6 +118,12 @@ else:
         }
     }
 
+if PRODUCTION and SECRET_KEY == 'academy-1618-dev-secret-key':
+    raise ImproperlyConfigured('Set a strong SECRET_KEY in production.')
+
+if PRODUCTION and not USE_POSTGRES:
+    raise ImproperlyConfigured('Set USE_POSTGRES=true and provide PostgreSQL credentials in production.')
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -127,10 +138,16 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -187,6 +204,10 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 if not DEBUG:
+    if not config('CLOUDINARY_URL', default='').strip():
+        raise ImproperlyConfigured('Set CLOUDINARY_URL in production for persistent media storage.')
+    STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
+
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = _to_bool(config('SECURE_SSL_REDIRECT', default='true'))
     SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
