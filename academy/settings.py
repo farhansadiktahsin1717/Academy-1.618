@@ -114,10 +114,26 @@ DB_USER = _env_first('user', 'DB_USER')
 DB_PASSWORD = _env_first('password', 'DB_PASSWORD')
 DB_HOST = _env_first('host', 'DB_HOST')
 DB_PORT = _env_first('port', 'DB_PORT')
-USE_POSTGRES = _to_bool(config('USE_POSTGRES', default='false')) or bool(DATABASE_URL) or all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT])
+HAS_DB_FIELDS = all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT])
+USE_POSTGRES = _to_bool(config('USE_POSTGRES', default='false')) or bool(DATABASE_URL) or HAS_DB_FIELDS
 
-if DATABASE_URL:
-    parsed = urlparse(DATABASE_URL)
+parsed = urlparse(DATABASE_URL) if DATABASE_URL else None
+HAS_VALID_DATABASE_URL = bool(parsed and parsed.scheme and parsed.hostname and parsed.path)
+
+if HAS_DB_FIELDS:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST,
+            'PORT': DB_PORT,
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {'sslmode': 'require'},
+        }
+    }
+elif HAS_VALID_DATABASE_URL:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -133,14 +149,8 @@ if DATABASE_URL:
 elif USE_POSTGRES:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': DB_NAME,
-            'USER': DB_USER,
-            'PASSWORD': DB_PASSWORD,
-            'HOST': DB_HOST,
-            'PORT': DB_PORT,
-            'CONN_MAX_AGE': 600,
-            'OPTIONS': {'sslmode': 'require'},
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'academy.sqlite3',
         }
     }
 else:
