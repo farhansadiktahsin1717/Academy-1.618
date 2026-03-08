@@ -2,3 +2,5 @@ __pycache__/
 db.sqlite3
 .phi_env
 .env
+staticfiles/
+fixtures/

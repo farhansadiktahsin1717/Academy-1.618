@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from datetime import timedelta
-from urllib.parse import urlparse
 
 from decouple import config
 
@@ -21,19 +20,9 @@ def _to_bool(value, default=True):
     return default
 
 
-def _env_first(*names, default=''):
-    for name in names:
-        value = config(name, default='').strip()
-        if value:
-            return value
-    return default
-
-
 SECRET_KEY = config('SECRET_KEY', default='academy-1618-dev-secret-key')
 IS_VERCEL = _to_bool(config('VERCEL', default=os.environ.get('VERCEL', 'false')))
 DEBUG = _to_bool(config('DEBUG', default='false' if IS_VERCEL else 'true'))
-PRODUCTION = IS_VERCEL and not DEBUG
-CLOUDINARY_URL = _env_first('CLOUDINARY_URL')
 ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='127.0.0.1,localhost,.vercel.app').split(',') if host.strip()]
 
 VERCEL_URL = config('VERCEL_URL', default='').strip()
@@ -61,13 +50,12 @@ INSTALLED_APPS = [
     'djoser',
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
+    'cloudinary',
+    'cloudinary_storage',
     'users',
     'courses.apps.CoursesConfig',
     'enrollments.apps.EnrollmentsConfig',
 ]
-
-if CLOUDINARY_URL:
-    INSTALLED_APPS += ['cloudinary', 'cloudinary_storage']
 
 if DEBUG:
     INSTALLED_APPS.append('debug_toolbar')
@@ -108,58 +96,16 @@ WSGI_APPLICATION = 'academy.wsgi.application'
 
 INTERNAL_IPS = ['127.0.0.1']
 
-DATABASE_URL = _env_first('DATABASE_URL', 'POSTGRES_URL')
-DB_NAME = _env_first('dbname', 'DB_NAME')
-DB_USER = _env_first('user', 'DB_USER')
-DB_PASSWORD = _env_first('password', 'DB_PASSWORD')
-DB_HOST = _env_first('host', 'DB_HOST')
-DB_PORT = _env_first('port', 'DB_PORT')
-HAS_DB_FIELDS = all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT])
-USE_POSTGRES = _to_bool(config('USE_POSTGRES', default='false')) or bool(DATABASE_URL) or HAS_DB_FIELDS
-
-parsed = urlparse(DATABASE_URL) if DATABASE_URL else None
-HAS_VALID_DATABASE_URL = bool(parsed and parsed.scheme and parsed.hostname and parsed.path)
-
-if HAS_DB_FIELDS:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': DB_NAME,
-            'USER': DB_USER,
-            'PASSWORD': DB_PASSWORD,
-            'HOST': DB_HOST,
-            'PORT': DB_PORT,
-            'CONN_MAX_AGE': 600,
-            'OPTIONS': {'sslmode': 'require'},
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('dbname'),
+        'USER': config('user'),
+        'PASSWORD': config('password'),
+        'HOST': config('host'),
+        'PORT': config('port')
     }
-elif HAS_VALID_DATABASE_URL:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': parsed.path.lstrip('/'),
-            'USER': parsed.username or '',
-            'PASSWORD': parsed.password or '',
-            'HOST': parsed.hostname or '',
-            'PORT': str(parsed.port or ''),
-            'CONN_MAX_AGE': 600,
-            'OPTIONS': {'sslmode': 'require'},
-        }
-    }
-elif USE_POSTGRES:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'academy.sqlite3',
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'academy.sqlite3',
-        }
-    }
+}
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -242,7 +188,7 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 if not DEBUG:
-    if CLOUDINARY_URL:
+    if config('CLOUDINARY_URL', default='').strip():
         STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
 
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
