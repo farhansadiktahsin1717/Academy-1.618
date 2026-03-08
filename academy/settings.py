@@ -101,40 +101,17 @@ INTERNAL_IPS = ['127.0.0.1']
 DATABASE_URL = config('DATABASE_URL', default='').strip() or config('POSTGRES_URL', default='').strip()
 USE_POSTGRES = _to_bool(config('USE_POSTGRES', default='false')) or bool(DATABASE_URL)
 
-if DATABASE_URL:
-    parsed_db = urlparse(DATABASE_URL)
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': parsed_db.path.lstrip('/'),
-            'USER': parsed_db.username or '',
-            'PASSWORD': parsed_db.password or '',
-            'HOST': parsed_db.hostname or '',
-            'PORT': str(parsed_db.port or ''),
-            'CONN_MAX_AGE': 600,
-            'OPTIONS': {'sslmode': 'require'},
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('dbname'),
+        'USER': config('user'),
+        'PASSWORD': config('password'),
+        'HOST': config('host'),
+        'PORT': config('port')
     }
-elif USE_POSTGRES and config('dbname', default=None):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('dbname'),
-            'USER': config('user'),
-            'PASSWORD': config('password'),
-            'HOST': config('host'),
-            'PORT': config('port'),
-            'CONN_MAX_AGE': 600,
-            'OPTIONS': {'sslmode': 'require'},
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'academy.sqlite3',
-        }
-    }
+}
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
