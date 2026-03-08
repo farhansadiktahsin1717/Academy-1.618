@@ -133,6 +133,8 @@ STORAGES = {
     },
 }
 
+WHITENOISE_USE_FINDERS = True
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
