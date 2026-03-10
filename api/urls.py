@@ -12,6 +12,7 @@ router.register('enrollments', EnrollmentViewSet, basename='enrollments')
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/admin/stats/', AdminDashboardStatsView.as_view(), name='admin-dashboard-stats'),
+    path('payments/', include('payments.urls')),
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),
     path('auth/logout/', LogoutView.as_view(), name='auth-logout'),

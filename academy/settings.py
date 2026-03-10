@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'users',
     'courses.apps.CoursesConfig',
     'enrollments.apps.EnrollmentsConfig',
+    'payments.apps.PaymentsConfig',
 ]
 
 if DEBUG:
@@ -96,16 +97,26 @@ WSGI_APPLICATION = 'academy.wsgi.application'
 
 INTERNAL_IPS = ['127.0.0.1']
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('dbname'),
-        'USER': config('user'),
-        'PASSWORD': config('password'),
-        'HOST': config('host'),
-        'PORT': config('port')
+USE_SQLITE = _to_bool(config('USE_SQLITE', default='true' if DEBUG else 'false'))
+
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'academy.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('dbname'),
+            'USER': config('user'),
+            'PASSWORD': config('password'),
+            'HOST': config('host'),
+            'PORT': config('port')
+        }
+    }
 
 
 AUTH_PASSWORD_VALIDATORS = [

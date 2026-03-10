@@ -12,6 +12,7 @@ def api_root_view(request):
             'courses': '/api/v1/courses/',
             'my_courses': '/api/v1/courses/my_courses/',
             'enrollments': '/api/v1/enrollments/',
+            'payments_initiate': '/api/v1/payments/initiate/',
             'admin_dashboard_stats': '/api/v1/dashboard/admin/stats/',
         }
     )
