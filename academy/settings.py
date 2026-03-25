@@ -54,6 +54,25 @@ if VERCEL_URL:
     if vercel_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(vercel_origin)
 
+DEFAULT_CORS_ALLOWED_ORIGINS = [
+    'https://academy-1618.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+]
+
+CORS_ALLOWED_ORIGINS = _csv_list(config('CORS_ALLOWED_ORIGINS', default=','.join(DEFAULT_CORS_ALLOWED_ORIGINS)))
+
+if VERCEL_URL:
+    vercel_origin = f'https://{VERCEL_URL}'
+    if vercel_origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(vercel_origin)
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://.*\.vercel\.app$',
+]
+
 AUTH_USER_MODEL = 'users.User'
 
 INSTALLED_APPS = [
@@ -207,15 +226,6 @@ SWAGGER_SETTINGS = {
         }
     }
 }
-
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "https://academy-1618.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-]
 
 CORS_ALLOW_CREDENTIALS = True
 
