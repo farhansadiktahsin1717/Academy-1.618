@@ -1,137 +1,218 @@
-# Academy 1.618 - Online School API
+# Academy 1.618 Backend
 
-Django REST API for an e-learning platform where students register, verify email, buy courses, and track progress. Teachers manage their own courses, while admins access platform analytics.
+Academy 1.618 is a full-stack online learning platform. This backend provides the REST API for authentication, course management, enrollments, payments, and admin analytics. It is built with Django, Django REST Framework, Djoser, and SimpleJWT, and is designed to work with a separately deployed React frontend.
 
-## Implemented Requirements
+## Live Links
 
-1. User Registration and Authentication
-- Registration: `POST /api/v1/auth/users/`
-- Email activation (Djoser): activation link sent after registration
-- Login (JWT): `POST /api/v1/auth/jwt/create/`
-- Logout (blacklist refresh token): `POST /api/v1/auth/logout/`
+- Backend API base: `https://academy-1618.vercel.app/api/v1`
+- Swagger docs: `https://academy-1618.vercel.app/swagger/`
+- ReDoc docs: `https://academy-1618.vercel.app/redoc/`
 
-2. Course Creation
-- Teachers and admins can create courses: `POST /api/v1/courses/`
-- Course fields: `title`, `description`, `department`, `price`, `modules`, `resources`, `quiz_overview`
+## Features
 
-3. Course Management
-- Teacher can update/delete only their own courses
-- Admin can update/delete any course
-- Teacher dashboard list: `GET /api/v1/courses/my_courses/`
-
-4. Course Listings
-- Home listing: `GET /api/v1/courses/`
-- Filter by department: `GET /api/v1/courses/?department=CSE`
-- Search: `?search=python`
-- Ordering: `?ordering=price` or `?ordering=-created_at`
-
-5. Admin Dashboard
-- Endpoint: `GET /api/v1/dashboard/admin/stats/` (admin only)
-- Returns:
-  - purchases in last week and last month
-  - mostly purchased courses
-  - top 5 students by course purchases
-  - total sales for current month and previous month
-
-6. Deployment Ready (Django REST API)
-- Built for standard Django deployment targets (Render/Railway/EC2/Vercel serverless adapter patterns)
-- Uses environment-based settings
-- PostgreSQL can be enabled with `USE_POSTGRES=true`
+- JWT authentication with registration, login, logout, and account activation flow
+- Custom email-based user model with student and teacher roles
+- Course CRUD with teacher ownership and admin override access
+- Course search, ordering, and filtering support
+- Student enrollment flow with progress tracking
+- Admin dashboard statistics for purchases, revenue, and top students
+- Payment initiation endpoint for checkout integration
+- Seed command for sample teachers, students, courses, and enrollments
+- Environment-based configuration for local development and production deployment
 
 ## Tech Stack
+
+- Python
 - Django 5
 - Django REST Framework
-- Djoser + SimpleJWT
+- Djoser
+- SimpleJWT
 - django-filter
-- drf-yasg (Swagger / ReDoc)
+- drf-yasg
+- PostgreSQL / Supabase-ready configuration
+- WhiteNoise
+- django-cors-headers
+
+## Main API Routes
+
+- `POST /api/v1/auth/users/` - register a user
+- `POST /api/v1/auth/jwt/create/` - log in and receive JWT tokens
+- `POST /api/v1/auth/logout/` - blacklist refresh token
+- `GET /api/v1/auth/users/me/` - fetch current user
+- `GET /api/v1/courses/` - list courses
+- `GET /api/v1/courses/my_courses/` - list teacher/admin courses
+- `GET /api/v1/enrollments/` - list enrollments for the authenticated user
+- `POST /api/v1/payments/initiate/` - start a payment flow
+- `GET /api/v1/dashboard/admin/stats/` - admin analytics
+
+## Project Structure
+
+```text
+academy/          Django settings and root URLs
+api/              API root views and router configuration
+users/            Custom user model, auth-related views, seed command
+courses/          Course model, serializers, filters, permissions, views
+enrollments/      Enrollment model, serializers, dashboard stats
+payments/         Payment integration endpoints
+manage.py
+requirements.txt
+vercel.json
+```
 
 ## Local Setup
 
-1. Install dependencies
+1. Create and activate a virtual environment.
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+2. Install dependencies.
+
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Run migrations
+3. Create a `.env` file in the backend root.
+
+Example:
+
+```env
+SECRET_KEY=change-me
+DEBUG=true
+USE_SQLITE=true
+ALLOWED_HOSTS=127.0.0.1,localhost
+CSRF_TRUSTED_ORIGINS=http://localhost:5173
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+```
+
+4. Run migrations.
+
 ```bash
 python manage.py migrate
 ```
 
-3. Create admin
+5. Optional: seed sample data.
+
 ```bash
-python manage.py createsuperuser
+python manage.py seed_sample_data
 ```
 
-4. Run server
+6. Start the development server.
+
 ```bash
 python manage.py runserver
 ```
 
+## Sample Data
+
+The project includes a seed command that creates sample teachers, students, courses, and enrollments.
+
+Run:
+
+```bash
+python manage.py seed_sample_data
+```
+
+Default sample passwords:
+
+- Teachers: `TeacherPass123!`
+- Students: `StudentPass123!`
+
+Example seeded teacher accounts:
+
+- `farhan.rahman.teacher@academy1618.local`
+- `nazia.sultana.teacher@academy1618.local`
+- `tanvir.hossain.teacher@academy1618.local`
+
+Example seeded student accounts:
+
+- `amina.khan.student@academy1618.local`
+- `rafi.islam.student@academy1618.local`
+- `sadia.akter.student@academy1618.local`
+
 ## Environment Variables
 
-Optional (safe defaults exist for local development):
+### Core
+
 - `SECRET_KEY`
 - `DEBUG`
 - `ALLOWED_HOSTS`
 - `TIME_ZONE`
 
-Email (for real activation emails):
+### Frontend / Cross-Origin
+
+- `CORS_ALLOWED_ORIGINS`
+- `CSRF_TRUSTED_ORIGINS`
+
+### Database
+
+- `USE_SQLITE`
+- `dbname`
+- `user`
+- `password`
+- `host`
+- `port`
+
+### Email
+
 - `EMAIL_HOST`
 - `EMAIL_USE_TLS`
 - `EMAIL_PORT`
 - `EMAIL_HOST_USER`
 - `EMAIL_HOST_PASSWORD`
 
-PostgreSQL:
-- `USE_POSTGRES=true`
-- `dbname`
-- `user`
-- `password`
-- `host`
-- `port`
+### Media / Storage
 
-If email host is not configured, activation links are printed to console backend.
+- `CLOUDINARY_URL`
 
-## API Documentation
-- Swagger: `/swagger/`
-- ReDoc: `/redoc/`
+## Production Notes
+
+- Use `USE_SQLITE=false` in production
+- Use a real PostgreSQL/Supabase database for persistent auth and course data
+- Make sure the deployed frontend origin is listed in both `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`
+- On Vercel, set `ALLOWED_HOSTS=.vercel.app`
+- After updating environment variables, redeploy the backend
 
 ## Vercel Deployment
 
-This project includes `vercel.json` and is ready for Django serverless deployment on Vercel.
+This backend is configured for Vercel using `vercel.json`.
 
-1. Vercel project settings
-- Framework preset: `Other`
-- Root directory: repository root (where `manage.py` exists)
+Recommended backend environment variables:
 
-2. Required environment variables on Vercel
-- `SECRET_KEY` (required, set a strong value)
-- `DEBUG=false`
-- `ALLOWED_HOSTS=.vercel.app`
-- `CSRF_TRUSTED_ORIGINS=https://<your-project>.vercel.app`
-- `USE_POSTGRES=true`
-- `dbname`
-- `user`
-- `password`
-- `host`
-- `port`
-- `CLOUDINARY_URL` (required for persistent media storage)
-
-3. Optional variables
-- `TIME_ZONE`
-- Email settings (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`)
-
-4. Deploy with Vercel CLI
-```bash
-vercel
-vercel --prod
+```env
+SECRET_KEY=your-real-secret
+DEBUG=false
+ALLOWED_HOSTS=.vercel.app
+CORS_ALLOWED_ORIGINS=https://academy-1-618.vercel.app
+CSRF_TRUSTED_ORIGINS=https://academy-1-618.vercel.app
+USE_SQLITE=false
+dbname=your-db-name
+user=your-db-user
+password=your-db-password
+host=your-db-host
+port=your-db-port
 ```
 
-5. Apply database migrations (from local machine using production env vars)
+After deployment, apply migrations against the production database:
+
 ```bash
 python manage.py migrate
 ```
 
-Notes:
-- Local SQLite files are excluded from deployment via `.vercelignore`.
-- Vercel filesystem is ephemeral; production now enforces Cloudinary-backed media storage.
+## Frontend Pairing
+
+This backend is intended to work with the separate React frontend located in:
+
+[`Academy 1.618-client`](c:/Users/FARHAN/Desktop/Academy%201.618/Academy%201.618-client/README.md)
+
+Frontend production API base:
+
+```env
+VITE_API_BASE=https://academy-1618.vercel.app
+```
+
+## License
+
+This project is for educational and portfolio use.
