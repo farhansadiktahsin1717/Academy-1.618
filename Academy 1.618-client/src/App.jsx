@@ -9,7 +9,22 @@ import Home from './pages/Home'
 import NotFound from './pages/NotFound'
 import './App.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1'
+function normalizeApiBase(value) {
+  const raw = (value || '/api/v1').trim()
+  const withoutTrailingSlash = raw.replace(/\/+$/, '')
+
+  if (withoutTrailingSlash.endsWith('/api/v1')) {
+    return withoutTrailingSlash
+  }
+
+  if (withoutTrailingSlash.endsWith('/api')) {
+    return `${withoutTrailingSlash}/v1`
+  }
+
+  return `${withoutTrailingSlash}/api/v1`
+}
+
+const API_BASE = normalizeApiBase(import.meta.env.VITE_API_BASE)
 
 const storage = {
   get access() {
