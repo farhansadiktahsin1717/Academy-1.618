@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
 
-function DashboardOverview({ adminStats, courses, enrollments, isAdmin, isAuthenticated, isTeacher, user }) {
+function DashboardOverview({ adminStats, courses, enrollments, isAdmin, isAuthenticated, isLoading, isTeacher, user }) {
   const totalCourses = courses.length
   const activeEnrollments = enrollments.length
   const averageProgress = activeEnrollments
@@ -15,7 +15,7 @@ function DashboardOverview({ adminStats, courses, enrollments, isAdmin, isAuthen
   const recentEnrollments = enrollments.slice(0, 4)
 
   return (
-    <main className="dashboard-overview">
+    <main className="dashboard-overview page-stack">
       <section className="dash-overview-hero">
         <div className="dash-hero-copy">
           <p className="eyebrow">Dashboard Overview</p>
@@ -33,9 +33,9 @@ function DashboardOverview({ adminStats, courses, enrollments, isAdmin, isAuthen
                 Back to Home
               </Link>
             ) : (
-              <a className="ghost" href="/#apply">
+              <Link className="ghost" to="/">
                 Sign in to unlock
-              </a>
+              </Link>
             )}
           </div>
         </div>
@@ -78,7 +78,9 @@ function DashboardOverview({ adminStats, courses, enrollments, isAdmin, isAuthen
             <span className="pill success">Live</span>
           </div>
           <p className="muted">
-            {activeEnrollments
+            {isLoading
+              ? 'Loading enrollment activity from the API.'
+              : activeEnrollments
               ? `${averageProgress}% average progress across active cohorts.`
               : 'No enrollments yet. Publish a course or apply to get started.'}
           </p>
@@ -155,32 +157,33 @@ function DashboardOverview({ adminStats, courses, enrollments, isAdmin, isAuthen
 
 DashboardOverview.propTypes = {
   adminStats: PropTypes.shape({
-    purchases_last_week: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     purchases_last_month: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    purchases_last_week: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     total_sell_current_month: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   }),
   courses: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       department: PropTypes.string,
-      title: PropTypes.string,
       description: PropTypes.string,
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       level: PropTypes.string,
       price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      title: PropTypes.string,
     }),
   ).isRequired,
   enrollments: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      amount_paid: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
       course_title: PropTypes.string,
       customer_name: PropTypes.string,
-      student_email: PropTypes.string,
-      amount_paid: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       progress: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      student_email: PropTypes.string,
     }),
   ).isRequired,
   isAdmin: PropTypes.bool.isRequired,
   isAuthenticated: PropTypes.bool.isRequired,
+  isLoading: PropTypes.bool.isRequired,
   isTeacher: PropTypes.bool.isRequired,
   user: PropTypes.shape({
     first_name: PropTypes.string,

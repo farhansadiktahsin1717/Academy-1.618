@@ -1,0 +1,23 @@
+{
+  "name": "Academy 1.618",
+  "short_name": "Academy1618",
+  "description": "A polished academy platform with live course data, enrollment, payments, and dashboards.",
+  "theme_color": "#10261c",
+  "background_color": "#f4efe6",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/pwa-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

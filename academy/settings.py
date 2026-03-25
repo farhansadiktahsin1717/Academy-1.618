@@ -20,16 +20,35 @@ def _to_bool(value, default=True):
     return default
 
 
+def _csv_list(value):
+    return [item.strip() for item in str(value).split(',') if item and item.strip()]
+
+
 SECRET_KEY = config('SECRET_KEY', default='academy-1618-dev-secret-key')
 IS_VERCEL = _to_bool(config('VERCEL', default=os.environ.get('VERCEL', 'false')))
 DEBUG = _to_bool(config('DEBUG', default='false' if IS_VERCEL else 'true'))
-ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='127.0.0.1,localhost,.vercel.app').split(',') if host.strip()]
+ALLOWED_HOSTS = _csv_list(config('ALLOWED_HOSTS', default='127.0.0.1,localhost,.vercel.app'))
+
+for host in ('127.0.0.1', 'localhost', '[::1]'):
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 VERCEL_URL = config('VERCEL_URL', default='').strip()
 if VERCEL_URL and VERCEL_URL not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(VERCEL_URL)
 
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',') if origin.strip()]
+CSRF_TRUSTED_ORIGINS = _csv_list(config('CSRF_TRUSTED_ORIGINS', default=''))
+
+for origin in (
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+    'http://127.0.0.1:5173',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://localhost:3000',
+):
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
 if VERCEL_URL:
     vercel_origin = f'https://{VERCEL_URL}'
     if vercel_origin not in CSRF_TRUSTED_ORIGINS:
@@ -227,9 +246,9 @@ if not DEBUG:
         STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
 
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = _to_bool(config('SECURE_SSL_REDIRECT', default='true'))
-    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = _to_bool(config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default='true'))
-    SECURE_HSTS_PRELOAD = _to_bool(config('SECURE_HSTS_PRELOAD', default='true'))
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = _to_bool(config('SECURE_SSL_REDIRECT', default='true' if IS_VERCEL else 'false'))
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000 if IS_VERCEL else 0, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _to_bool(config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default='true' if IS_VERCEL else 'false'))
+    SECURE_HSTS_PRELOAD = _to_bool(config('SECURE_HSTS_PRELOAD', default='true' if IS_VERCEL else 'false'))
+    SESSION_COOKIE_SECURE = _to_bool(config('SESSION_COOKIE_SECURE', default='true' if IS_VERCEL else 'false'))
+    CSRF_COOKIE_SECURE = _to_bool(config('CSRF_COOKIE_SECURE', default='true' if IS_VERCEL else 'false'))

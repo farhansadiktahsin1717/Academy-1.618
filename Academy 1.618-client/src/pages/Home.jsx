@@ -1,113 +1,64 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
+import { Link } from 'react-router-dom'
+import Icon from '../components/Icon'
 
-const heroStats = [
-  { value: '4.2k+', label: 'Learners Online', hint: 'Across cohorts in 12 timezones' },
-  { value: '68', label: 'Industry Mentors', hint: 'Weekly reviews and office hours' },
-  { value: '95%', label: 'Completion Rate', hint: 'Studio-based, outcome focused' },
-]
-
-const serviceCards = [
+const highlights = [
   {
-    title: 'Skilled Instructors',
-    body: 'Learn with mentors who have built products at scale in fintech, AI, and edtech.',
+    icon: 'graduation',
+    title: 'Cohort-ready learning',
+    description: 'Clear pathways, structured schedules, and mentor-led sessions help learners keep momentum from week one.',
   },
   {
-    title: 'Online Classes',
-    body: 'Live classes plus deep work sprints with recordings and structured notes.',
+    icon: 'chart',
+    title: 'Real operational visibility',
+    description: 'Students, teachers, and admins each get a focused dashboard instead of one cluttered experience for everyone.',
   },
   {
-    title: 'International Certification',
-    body: 'Earn credential pathways mapped to global hiring standards.',
-  },
-  {
-    title: 'Career Support',
-    body: 'Mock interviews, project feedback, and employer showcases every month.',
+    icon: 'shield',
+    title: 'Trusted payment flow',
+    description: 'Enrollment checkout connects directly to the existing payment API so the public site and platform stay aligned.',
   },
 ]
 
-const campusPillars = [
-  { title: 'Innovation Sprints', body: 'Weekly studio challenges anchored on real briefs.' },
-  { title: 'Career Concierge', body: 'Portfolio reviews, interview prep, and employer showcases.' },
-  { title: 'Global Community', body: 'Peer pods across 12 timezones keep momentum high.' },
-  { title: 'Scholarships', body: 'Need-based grants plus rolling corporate sponsorships.' },
-]
-
-const eventHighlights = [
+const steps = [
   {
-    title: 'Product Narrative Residency',
-    date: 'April 18 � Virtual Studio',
-    focus: 'Craft launch stories with venture-backed founders.',
+    step: '01',
+    title: 'Explore the catalog',
+    description: 'Browse live course data, filter by priority, and quickly compare pricing, departments, and level.',
   },
   {
-    title: 'AI in Production Lab',
-    date: 'May 02 � Dhaka Campus',
-    focus: 'Ship reliable ML hand-offs with MLOps coaches.',
+    step: '02',
+    title: 'Create your account',
+    description: 'Register as a student or teacher, then use the same account across admission, dashboards, and checkout.',
   },
   {
-    title: 'Future Campus Open House',
-    date: 'May 24 � Hybrid',
-    focus: 'Meet faculty, explore dashboards, and preview labs.',
+    step: '03',
+    title: 'Enroll and track progress',
+    description: 'Complete payment, access your role-based workspace, and monitor progress through a single interface.',
   },
 ]
 
-const facultyShowcase = [
-  {
-    name: 'Dr. Farzan Rahim',
-    badge: 'AI Research Lead',
-    bio: 'Previously at DeepMind and Meta FAIR, now designing our ML lab.',
-    portrait: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&w=500&q=80',
-  },
-  {
-    name: 'Rayan Chowdhury',
-    badge: 'Principal Product Engineer',
-    bio: 'Helps teams build reliable cloud-native systems with React + Django.',
-    portrait: 'https://images.unsplash.com/photo-1544723795-432537f90837?auto=format&w=500&q=80',
-  },
-  {
-    name: 'Anika Karim',
-    badge: 'Design Systems Mentor',
-    bio: 'Former IDEO designer bringing storytelling into digital classrooms.',
-    portrait: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&w=500&q=80',
-  },
+const trustPoints = [
+  'Live courses',
+  'Role-based dashboards',
+  'Integrated payments',
 ]
 
-const insightStories = [
-  {
-    title: 'How Studio-Based Learning Boosted Completion Rates',
-    date: 'March 03, 2026',
-    tag: 'Academics',
-  },
-  {
-    title: 'Payment Cohorts + SSLCOMMERZ: Scaling Trusted Checkout',
-    date: 'February 18, 2026',
-    tag: 'Operations',
-  },
-  {
-    title: 'Teacher Playbooks For Mixed Reality Workshops',
-    date: 'January 29, 2026',
-    tag: 'Faculty',
-  },
-]
-
-const testimonials = [
-  {
-    name: 'Nazia Ahmed',
-    role: 'Frontend Developer',
-    quote: 'Project-driven modules helped me move from tutorial fatigue to production confidence.',
-  },
-  {
-    name: 'Shadman Raihan',
-    role: 'Data Analyst',
-    quote: 'The learning path is structured. I always know what to learn next and why.',
-  },
-  {
-    name: 'Tania Sultana',
-    role: 'CSE Student',
-    quote: 'The class resources and quizzes made revision much faster before my exams.',
-  },
-]
+function SkeletonCard() {
+  return (
+    <article className="course-card skeleton-card" aria-hidden="true">
+      <span className="skeleton skeleton-line short" />
+      <span className="skeleton skeleton-title" />
+      <span className="skeleton skeleton-line" />
+      <span className="skeleton skeleton-line" />
+      <div className="card-foot">
+        <span className="skeleton skeleton-chip" />
+        <span className="skeleton skeleton-button" />
+      </div>
+    </article>
+  )
+}
 
 function Home({
   checkoutCourse,
@@ -116,15 +67,17 @@ function Home({
   enrollmentByCourse,
   featuredCourses,
   isAuthenticated,
-  loading,
+  isAuthSubmitting,
+  isCheckoutSubmitting,
+  isCoursesLoading,
   onAuthFormChange,
   onCheckoutFormChange,
   onLogin,
   onLogout,
+  onOrderingChange,
   onPaymentInit,
   onRegister,
   onSearchChange,
-  onOrderingChange,
   openCheckout,
   ordering,
   search,
@@ -133,340 +86,379 @@ function Home({
 }) {
   const [authMode, setAuthMode] = useState('login')
 
+  const emptyState = useMemo(() => {
+    if (isCoursesLoading) {
+      return ''
+    }
+
+    if (search.trim()) {
+      return 'No courses match this search yet.'
+    }
+
+    return 'Courses will appear here as soon as they are published.'
+  }, [isCoursesLoading, search])
+
   return (
-    <main>
-      <section className="hero" id="home">
+    <main className="page-stack">
+      <section className="hero-panel">
         <div className="hero-copy">
-          <p className="eyebrow">Inspired by Colorlib Academia</p>
-          <h1>Education that feels human, ambitious, and beautifully structured.</h1>
-          <p>
-            Academy 1.618 blends studio learning, transparent tuition, and modern dashboards for students, teachers, and
-            admins. Explore future-ready tracks and apply for the next cohort.
+          <p className="eyebrow">Academy 1.618</p>
+          <h1>Learn, enroll, and manage the entire academy journey from one modern platform.</h1>
+          <p className="hero-lead">
+            This landing page was rebuilt to present the project like a product, not just a demo. It introduces the
+            academy clearly, highlights the full-stack feature set, and connects directly to the live course and payment
+            APIs already in the app.
           </p>
           <div className="hero-actions">
-            <a className="primary" href="#courses">
-              Explore Programs
+            <a className="primary" href="#catalog">
+              Explore Courses
             </a>
-            <Link className="ghost" to="/dashboard">View Dashboards</Link>
+            <Link className="ghost" to="/about">
+              About the Platform
+            </Link>
           </div>
-          <div className="stat-ribbon">
-            {heroStats.map((stat) => (
-              <article key={stat.label}>
-                <strong>{stat.value}</strong>
-                <span>{stat.label}</span>
-                <p>{stat.hint}</p>
-              </article>
+          <div className="trust-list">
+            {trustPoints.map((point) => (
+              <div key={point} className="trust-item">
+                <p>{point}</p>
+              </div>
             ))}
           </div>
         </div>
-        <aside className="hero-visual">
-          <img
-            src="https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&w=900&q=80"
-            alt="Students collaborating"
-          />
-          <div className="hero-card">
-            <p className="eyebrow">Next Cohort</p>
-            <h3>June 2026 Intake</h3>
-            <p>Apply early to reserve a seat, get counseling, and secure scholarships.</p>
-            <a className="primary" href="#apply">
-              Start Application
-            </a>
+
+        <aside className="hero-card">
+          <div className="hero-card-top">
+            <p className="eyebrow">Platform Snapshot</p>
+            <strong>Full-stack academy management</strong>
+          </div>
+          <div className="hero-metrics">
+            <article>
+              <span>{courses.length}</span>
+              <p>Live Courses</p>
+            </article>
+            <article>
+              <span>{Object.keys(enrollmentByCourse).length}</span>
+              <p>Your Enrollments</p>
+            </article>
+            <article>
+              <span>{isAuthenticated ? 'On' : 'Off'}</span>
+              <p>Account Access</p>
+            </article>
+          </div>
+          <div className="hero-card-bottom">
+            <p>The public site now leads naturally into dashboards, authentication, and checkout instead of feeling disconnected.</p>
+            <Link className="inline-link" to="/dashboard">
+              Open dashboard overview
+              <Icon name="arrowRight" size={18} />
+            </Link>
           </div>
         </aside>
       </section>
 
-      <section className="services" id="about">
-        <header>
-          <p className="eyebrow">Why Us</p>
-          <h2>Everything you need to scale your career.</h2>
-        </header>
-        <div className="service-grid">
-          {serviceCards.map((service) => (
-            <article key={service.title}>
-              <h3>{service.title}</h3>
-              <p>{service.body}</p>
+      <section>
+        <div className="section-head">
+          <div className="section-copy">
+            <p className="eyebrow">Highlights</p>
+            <h2>Focused features with a cleaner product feel.</h2>
+          </div>
+        </div>
+        <div className="feature-grid">
+          {highlights.map((item) => (
+            <article key={item.title} className="feature-card">
+              <div className="feature-icon">
+                <Icon name={item.icon} />
+              </div>
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="about">
-        <div className="about-image">
-          <img
-            src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&w=900&q=80"
-            alt="Mentor session"
-          />
-          <div className="about-badge">
-            <strong>12+</strong>
-            <span>Years of learning design</span>
+      <section>
+        <div className="section-head">
+          <div className="section-copy">
+            <p className="eyebrow">How It Works</p>
+            <h2>A simple three-step flow from discovery to delivery.</h2>
           </div>
         </div>
-        <div className="about-copy">
-          <p className="eyebrow">Our Story</p>
-          <h2>We pair world-class education with modern delivery.</h2>
-          <p>
-            From live workshops to self-paced labs, every program is structured to move learners from fundamentals to
-            portfolio-ready outcomes. We obsess over clarity, mentorship, and momentum.
-          </p>
-          <div className="pillar-grid">
-            {campusPillars.map((pillar) => (
-              <article key={pillar.title}>
-                <h3>{pillar.title}</h3>
-                <p>{pillar.body}</p>
-              </article>
-            ))}
-          </div>
+        <div className="steps-grid">
+          {steps.map((item) => (
+            <article key={item.step} className="step-card">
+              <span className="step-badge">{item.step}</span>
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="featured" id="featured">
-        <header>
-          <div>
-            <p className="eyebrow">Flagship Programs</p>
-            <h2>Spotlight courses for the upcoming cohort.</h2>
+      <section>
+        <div className="section-head">
+          <div className="section-copy">
+            <p className="eyebrow">Featured</p>
+            <h2>Flagship courses pulled from the real backend.</h2>
           </div>
-          <a className="ghost" href="#courses">
-            View catalog
-          </a>
-        </header>
-        <div className="featured-grid">
-          {featuredCourses.length === 0 && <p>No courses published yet.</p>}
+          <Link className="ghost" to="/contact">
+            Book a demo
+          </Link>
+        </div>
+        <div className="course-grid featured-grid">
           {featuredCourses.map((course) => (
-            <article key={course.id}>
-              <p className="eyebrow">{course.department || 'Discipline'}</p>
+            <article key={course.id} className="course-card featured-course-card">
+              <p className="course-tag">{course.department || 'General Studies'}</p>
               <h3>{course.title}</h3>
               <p>{course.description}</p>
               <div className="card-foot">
                 <strong>BDT {Number(course.price || 0).toFixed(2)}</strong>
                 {enrollmentByCourse[course.id] ? (
-                  <span className="pill success">Enrolled</span>
+                  <span className="status-pill success">Enrolled</span>
                 ) : (
-                  <button onClick={() => openCheckout(course)}>Enroll</button>
+                  <button className="secondary-button" onClick={() => openCheckout(course)} type="button">
+                    Enroll
+                  </button>
                 )}
               </div>
             </article>
           ))}
+          {!featuredCourses.length && !isCoursesLoading && <p className="empty-copy">No featured courses are available yet.</p>}
         </div>
       </section>
 
-      <section className="catalog" id="courses">
-        <header>
-          <div>
-            <p className="eyebrow">All Courses</p>
-            <h2>Curate your own path.</h2>
+      <section id="catalog">
+        <div className="section-head">
+          <div className="section-copy">
+            <p className="eyebrow">Live Catalog</p>
+            <h2>Search and filter the academy catalog.</h2>
           </div>
-          <div className="filters">
-            <input
-              type="search"
-              placeholder="Search course"
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-            <select value={ordering} onChange={(e) => onOrderingChange(e.target.value)}>
-              <option value="-created_at">Newest</option>
-              <option value="price">Price: Low to High</option>
-              <option value="-price">Price: High to Low</option>
-              <option value="title">Title A-Z</option>
-            </select>
+          <div className="catalog-filters">
+            <label className="field">
+              <span>Search</span>
+              <input
+                aria-label="Search courses"
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder="Search by title or topic"
+                type="search"
+                value={search}
+              />
+            </label>
+            <label className="field">
+              <span>Sort</span>
+              <select onChange={(event) => onOrderingChange(event.target.value)} value={ordering}>
+                <option value="-created_at">Newest First</option>
+                <option value="title">Title A-Z</option>
+                <option value="price">Lowest Price</option>
+                <option value="-price">Highest Price</option>
+              </select>
+            </label>
           </div>
-        </header>
-        {loading && <p className="muted">Loading courses...</p>}
-        <div className="course-grid">
-          {courses.map((course) => {
-            const alreadyEnrolled = Boolean(enrollmentByCourse[course.id])
-            return (
-              <article key={course.id}>
-                <h3>{course.title}</h3>
-                <p>{course.description}</p>
-                <div className="meta">
-                  <span>{course.department}</span>
-                  <span>{course.level || 'Mixed Level'}</span>
-                </div>
-                <div className="card-foot">
-                  <strong>BDT {Number(course.price || 0).toFixed(2)}</strong>
-                  {alreadyEnrolled ? (
-                    <span className="pill success">Enrolled</span>
-                  ) : (
-                    <button onClick={() => openCheckout(course)}>Buy</button>
-                  )}
-                </div>
-              </article>
-            )
-          })}
         </div>
+
+        <div className="course-grid">
+          {isCoursesLoading && Array.from({ length: 6 }, (_, index) => <SkeletonCard key={index} />)}
+          {!isCoursesLoading &&
+            courses.map((course) => {
+              const isEnrolled = Boolean(enrollmentByCourse[course.id])
+
+              return (
+                <article key={course.id} className="course-card">
+                  <p className="course-tag">{course.department || 'General Studies'}</p>
+                  <h3>{course.title}</h3>
+                  <p>{course.description}</p>
+                  <div className="course-meta">
+                    <span>{course.level || 'All Levels'}</span>
+                    <span>API Connected</span>
+                  </div>
+                  <div className="card-foot">
+                    <strong>BDT {Number(course.price || 0).toFixed(2)}</strong>
+                    {isEnrolled ? (
+                      <span className="status-pill success">Enrolled</span>
+                    ) : (
+                      <button className="secondary-button" onClick={() => openCheckout(course)} type="button">
+                        Buy Course
+                      </button>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
+        </div>
+
+        {!isCoursesLoading && !courses.length && <p className="empty-copy">{emptyState}</p>}
       </section>
 
       {checkoutCourse && (
-        <section className="checkout">
-          <header>
+        <section>
+          <div className="section-head">
             <div>
-              <p className="eyebrow">Secure Checkout</p>
+              <p className="eyebrow">Checkout</p>
               <h2>{checkoutCourse.title}</h2>
             </div>
-            <button className="ghost" onClick={() => setCheckoutCourse(null)}>
-              Back to Courses
+            <button className="ghost" onClick={() => setCheckoutCourse(null)} type="button">
+              Close
             </button>
-          </header>
+          </div>
           <div className="checkout-grid">
-            <div className="summary">
-              <p>{checkoutCourse.description}</p>
+            <article className="checkout-summary">
               <p>
-                <strong>Total: BDT {Number(checkoutCourse.price || 0).toFixed(2)}</strong>
+                You are about to initiate payment for a real course item in the platform. This keeps the landing page tied
+                directly to the backend purchase flow instead of acting like a disconnected mockup.
               </p>
-            </div>
-            <form onSubmit={onPaymentInit}>
-              <input
-                name="customer_name"
-                placeholder="Full Name"
-                value={checkoutForm.customer_name}
-                onChange={onCheckoutFormChange}
-                required
-              />
-              <input
-                name="customer_phone"
-                placeholder="Phone Number"
-                value={checkoutForm.customer_phone}
-                onChange={onCheckoutFormChange}
-                required
-              />
-              <textarea
-                name="customer_address"
-                placeholder="Address"
-                value={checkoutForm.customer_address}
-                onChange={onCheckoutFormChange}
-                required
-              />
-              <button type="submit">Proceed to SSLCOMMERZ</button>
+              <div className="summary-total">
+                <span>Total</span>
+                <strong>BDT {Number(checkoutCourse.price || 0).toFixed(2)}</strong>
+              </div>
+            </article>
+
+            <form className="surface-form" onSubmit={onPaymentInit}>
+              <label className="field">
+                <span>Full Name</span>
+                <input
+                  name="customer_name"
+                  onChange={onCheckoutFormChange}
+                  placeholder="Your full name"
+                  required
+                  value={checkoutForm.customer_name}
+                />
+              </label>
+              <label className="field">
+                <span>Phone Number</span>
+                <input
+                  name="customer_phone"
+                  onChange={onCheckoutFormChange}
+                  placeholder="Your phone number"
+                  required
+                  value={checkoutForm.customer_phone}
+                />
+              </label>
+              <label className="field">
+                <span>Address</span>
+                <textarea
+                  name="customer_address"
+                  onChange={onCheckoutFormChange}
+                  placeholder="Billing address"
+                  required
+                  rows="4"
+                  value={checkoutForm.customer_address}
+                />
+              </label>
+              <button className="primary" disabled={isCheckoutSubmitting} type="submit">
+                {isCheckoutSubmitting ? 'Preparing payment...' : 'Proceed to Payment'}
+              </button>
             </form>
           </div>
         </section>
       )}
 
-      <section className="events" id="events">
-        <header>
-          <div>
-            <p className="eyebrow">Calendar</p>
-            <h2>Upcoming studios & open houses.</h2>
+      <section id="apply">
+        <div className="section-head">
+          <div className="section-copy">
+            <p className="eyebrow">Access</p>
+            <h2>Log in or register to unlock the platform.</h2>
           </div>
-        </header>
-        <div className="event-grid">
-          {eventHighlights.map((event) => (
-            <article key={event.title}>
-              <p className="eyebrow">{event.date}</p>
-              <h3>{event.title}</h3>
-              <p>{event.focus}</p>
-              <button>Save Seat</button>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="faculty" id="faculty">
-        <header>
-          <div>
-            <p className="eyebrow">Faculty</p>
-            <h2>Mentors who blend research with execution.</h2>
-          </div>
-        </header>
-        <div className="faculty-grid">
-          {facultyShowcase.map((mentor) => (
-            <article key={mentor.name}>
-              <img src={mentor.portrait} alt={mentor.name} loading="lazy" />
-              <h3>{mentor.name}</h3>
-              <p className="eyebrow">{mentor.badge}</p>
-              <p>{mentor.bio}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="testimonials">
-        <header>
-          <div>
-            <p className="eyebrow">Learner Stories</p>
-            <h2>Proof from the community.</h2>
-          </div>
-        </header>
-        <div className="testimonial-grid">
-          {testimonials.map((item) => (
-            <article key={item.name}>
-              <p>�{item.quote}�</p>
-              <h4>{item.name}</h4>
-              <span>{item.role}</span>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="insights" id="insights">
-        <header>
-          <div>
-            <p className="eyebrow">Insights</p>
-            <h2>News from Academy 1.618</h2>
-          </div>
-        </header>
-        <div className="insight-grid">
-          {insightStories.map((story) => (
-            <article key={story.title}>
-              <p className="eyebrow">{story.tag}</p>
-              <h3>{story.title}</h3>
-              <p className="muted">{story.date}</p>
-              <button>Read Story</button>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="apply" id="apply">
-        <div className="apply-copy">
-          <p className="eyebrow">Admissions 2026</p>
-          <h2>Secure your seat for the June cohort.</h2>
-          <p>Apply now and preview the dashboards built for your role.</p>
-          {isAuthenticated && (
-            <button className="ghost" onClick={onLogout}>
-              Sign Out
-            </button>
-          )}
-        </div>
-        <aside className="apply-card">
-          <div className="tabs">
-            <button className={authMode === 'login' ? 'active' : ''} onClick={() => setAuthMode('login')}>
-              Login
-            </button>
-            <button className={authMode === 'register' ? 'active' : ''} onClick={() => setAuthMode('register')}>
-              Register
-            </button>
-          </div>
-          <form onSubmit={authMode === 'login' ? onLogin : onRegister}>
-            <input name="email" type="email" placeholder="Email" onChange={onAuthFormChange} required />
-            <input name="password" type="password" placeholder="Password" onChange={onAuthFormChange} required />
-            {authMode === 'register' && (
-              <>
-                <input
-                  name="re_password"
-                  type="password"
-                  placeholder="Confirm password"
-                  onChange={onAuthFormChange}
-                  required
-                />
-                <div className="split">
-                  <input name="first_name" type="text" placeholder="First Name" onChange={onAuthFormChange} />
-                  <input name="last_name" type="text" placeholder="Last Name" onChange={onAuthFormChange} />
-                </div>
-                <select name="role" onChange={onAuthFormChange}>
-                  <option value="student">Student</option>
-                  <option value="teacher">Teacher</option>
-                </select>
-              </>
-            )}
-            <button type="submit">{authMode === 'login' ? 'Access Dashboard' : 'Create Account'}</button>
-          </form>
           {user && (
-            <div className="apply-user">
-              <p className="muted">Signed in as {user.email}</p>
+            <div className="signed-in-chip">
+              <span>Signed in as {user.email}</span>
             </div>
           )}
-        </aside>
+        </div>
+
+        <div className="auth-grid">
+          <article className="auth-copy">
+            <h3>One account, multiple roles.</h3>
+            <p>
+              Students can track progress, teachers can review teaching assignments, and admins can monitor commercial
+              performance. The public pages now connect naturally into that same system.
+            </p>
+            <div className="bullet-list">
+              <div>
+                <Icon name="graduation" />
+                <span>Student dashboard with progress updates</span>
+              </div>
+              <div>
+                <Icon name="chart" />
+                <span>Teacher and admin workspaces</span>
+              </div>
+              <div>
+                <Icon name="shield" />
+                <span>Token-based authentication and guarded actions</span>
+              </div>
+            </div>
+            {isAuthenticated && (
+              <div className="hero-actions">
+                <Link className="ghost" to="/dashboard">
+                  Open Dashboard
+                </Link>
+                <button className="secondary-button" onClick={onLogout} type="button">
+                  Logout
+                </button>
+              </div>
+            )}
+          </article>
+
+          <aside className="auth-card">
+            <div className="tabs">
+              <button
+                className={authMode === 'login' ? 'active' : ''}
+                onClick={() => setAuthMode('login')}
+                type="button"
+              >
+                Login
+              </button>
+              <button
+                className={authMode === 'register' ? 'active' : ''}
+                onClick={() => setAuthMode('register')}
+                type="button"
+              >
+                Register
+              </button>
+            </div>
+            <form className="surface-form" onSubmit={authMode === 'login' ? onLogin : onRegister}>
+              <label className="field">
+                <span>Email</span>
+                <input name="email" onChange={onAuthFormChange} placeholder="name@example.com" required type="email" />
+              </label>
+              <label className="field">
+                <span>Password</span>
+                <input name="password" onChange={onAuthFormChange} placeholder="Enter password" required type="password" />
+              </label>
+              {authMode === 'register' && (
+                <>
+                  <label className="field">
+                    <span>Confirm Password</span>
+                    <input
+                      name="re_password"
+                      onChange={onAuthFormChange}
+                      placeholder="Repeat password"
+                      required
+                      type="password"
+                    />
+                  </label>
+                  <div className="split-fields">
+                    <label className="field">
+                      <span>First Name</span>
+                      <input name="first_name" onChange={onAuthFormChange} placeholder="First name" type="text" />
+                    </label>
+                    <label className="field">
+                      <span>Last Name</span>
+                      <input name="last_name" onChange={onAuthFormChange} placeholder="Last name" type="text" />
+                    </label>
+                  </div>
+                  <label className="field">
+                    <span>Role</span>
+                    <select defaultValue="student" name="role" onChange={onAuthFormChange}>
+                      <option value="student">Student</option>
+                      <option value="teacher">Teacher</option>
+                    </select>
+                  </label>
+                </>
+              )}
+              <button className="primary" disabled={isAuthSubmitting} type="submit">
+                {isAuthSubmitting ? 'Submitting...' : authMode === 'login' ? 'Access Dashboard' : 'Create Account'}
+              </button>
+            </form>
+          </aside>
+        </div>
       </section>
     </main>
   )
@@ -476,57 +468,52 @@ Home.propTypes = {
   checkoutCourse: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     title: PropTypes.string,
-    description: PropTypes.string,
     price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    department: PropTypes.string,
-    level: PropTypes.string,
   }),
   checkoutForm: PropTypes.shape({
+    customer_address: PropTypes.string,
     customer_name: PropTypes.string,
     customer_phone: PropTypes.string,
-    customer_address: PropTypes.string,
   }).isRequired,
   courses: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-      title: PropTypes.string,
-      description: PropTypes.string,
       department: PropTypes.string,
+      description: PropTypes.string,
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       level: PropTypes.string,
       price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      title: PropTypes.string,
     }),
   ).isRequired,
   enrollmentByCourse: PropTypes.objectOf(PropTypes.object).isRequired,
   featuredCourses: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-      title: PropTypes.string,
-      description: PropTypes.string,
       department: PropTypes.string,
+      description: PropTypes.string,
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      title: PropTypes.string,
     }),
   ).isRequired,
   isAuthenticated: PropTypes.bool.isRequired,
-  loading: PropTypes.bool.isRequired,
+  isAuthSubmitting: PropTypes.bool.isRequired,
+  isCheckoutSubmitting: PropTypes.bool.isRequired,
+  isCoursesLoading: PropTypes.bool.isRequired,
   onAuthFormChange: PropTypes.func.isRequired,
   onCheckoutFormChange: PropTypes.func.isRequired,
   onLogin: PropTypes.func.isRequired,
   onLogout: PropTypes.func.isRequired,
+  onOrderingChange: PropTypes.func.isRequired,
   onPaymentInit: PropTypes.func.isRequired,
   onRegister: PropTypes.func.isRequired,
   onSearchChange: PropTypes.func.isRequired,
-  onOrderingChange: PropTypes.func.isRequired,
   openCheckout: PropTypes.func.isRequired,
   ordering: PropTypes.string.isRequired,
   search: PropTypes.string.isRequired,
   setCheckoutCourse: PropTypes.func.isRequired,
   user: PropTypes.shape({
     email: PropTypes.string,
-    first_name: PropTypes.string,
-    last_name: PropTypes.string,
   }),
 }
+
 export default Home
-
-
-

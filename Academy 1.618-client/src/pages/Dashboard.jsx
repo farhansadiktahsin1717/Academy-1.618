@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
 
-function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated, isTeacher, onProgressUpdate, user }) {
+function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated, isLoading, isTeacher, onProgressUpdate, user }) {
   const [dashboardTab, setDashboardTab] = useState(() => {
     if (isAdmin) return 'admin'
     if (isTeacher) return 'teacher'
@@ -19,16 +19,15 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
       setDashboardTab('teacher')
       return
     }
-    if (isAuthenticated) {
-      setDashboardTab('student')
-      return
-    }
     setDashboardTab('student')
   }, [isAdmin, isTeacher, isAuthenticated])
+
   const myTeachingCourses = useMemo(() => {
     if (!user) return []
+
     const userEmail = user.email ? user.email.toLowerCase() : ''
     const userId = user?.id?.toString() || ''
+
     return courses.filter((course) => {
       const hints = [
         course?.teacher_email,
@@ -39,6 +38,7 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
         course?.created_by,
         course?.teacher_id,
       ]
+
       return hints.some((hint) => {
         if (!hint) return false
         const normalized = typeof hint === 'string' ? hint.toLowerCase() : String(hint)
@@ -58,13 +58,14 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
   }, [enrollments])
 
   const topDepartments = useMemo(() => {
-    const map = courses.reduce((acc, course) => {
+    const map = courses.reduce((accumulator, course) => {
       const key = course.department || 'General'
-      acc[key] = (acc[key] || 0) + 1
-      return acc
+      accumulator[key] = (accumulator[key] || 0) + 1
+      return accumulator
     }, {})
+
     return Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
+      .sort((left, right) => right[1] - left[1])
       .slice(0, 3)
   }, [courses])
 
@@ -82,7 +83,7 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
           <p>Login with the matching role to explore this workspace.</p>
           {!isAuthenticated && (
             <p>
-              Need an account? <Link to="/#apply">Register on the home page.</Link>
+              Need an account? <Link to="/">Register on the home page.</Link>
             </p>
           )}
         </div>
@@ -117,11 +118,11 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
                 </div>
                 <div className="range-row">
                   <input
-                    type="range"
-                    min="0"
                     max="100"
+                    min="0"
+                    onChange={(event) => onProgressUpdate(enrollment.id, event.target.value)}
+                    type="range"
                     value={enrollment.progress || 0}
-                    onChange={(e) => onProgressUpdate(enrollment.id, e.target.value)}
                   />
                   <span>{enrollment.progress || 0}%</span>
                 </div>
@@ -134,6 +135,7 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
 
     if (dashboardTab === 'teacher') {
       const potential = myTeachingCourses.reduce((sum, course) => sum + Number(course.price || 0), 0)
+
       return (
         <div className="teacher-panel">
           <header>
@@ -178,17 +180,17 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
     const purchases7 = adminStats?.purchases_last_week ?? 0
     const purchases30 = adminStats?.purchases_last_month ?? 0
     const sellCurrent = Number(adminStats?.total_sell_current_month || 0)
-    const sellPrev = Number(adminStats?.total_sell_previous_month || 0)
+    const sellPrevious = Number(adminStats?.total_sell_previous_month || 0)
 
     return (
       <div className="admin-panel">
         <div className="stat-grid">
           <article>
-            <p className="eyebrow">Purchases · 7 days</p>
+            <p className="eyebrow">Purchases / 7 days</p>
             <h3>{purchases7}</h3>
           </article>
           <article>
-            <p className="eyebrow">Purchases · 30 days</p>
+            <p className="eyebrow">Purchases / 30 days</p>
             <h3>{purchases30}</h3>
           </article>
           <article>
@@ -197,16 +199,16 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
           </article>
           <article>
             <p className="eyebrow">Previous Month</p>
-            <h3>BDT {sellPrev.toFixed(2)}</h3>
+            <h3>BDT {sellPrevious.toFixed(2)}</h3>
           </article>
         </div>
         <div className="admin-lists">
           <div>
             <h4>Top Departments</h4>
             <ul>
-              {topDepartments.map(([dept, count]) => (
-                <li key={dept}>
-                  <span>{dept}</span>
+              {topDepartments.map(([department, count]) => (
+                <li key={department}>
+                  <span>{department}</span>
                   <strong>{count}</strong>
                 </li>
               ))}
@@ -234,7 +236,7 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
   }
 
   return (
-    <main>
+    <main className="page-stack">
       <section className="dashboard-hero">
         <div>
           <p className="eyebrow">Role-Based Workspace</p>
@@ -276,11 +278,13 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
         <div className="dashboard-tabs">
           {['student', 'teacher', 'admin'].map((tab) => {
             const locked = !isDashboardUnlocked(tab)
+
             return (
               <button
-                key={tab}
                 className={`${dashboardTab === tab ? 'active' : ''} ${locked ? 'locked' : ''}`}
+                key={tab}
                 onClick={() => setDashboardTab(tab)}
+                type="button"
               >
                 {tab === 'student' && 'Student Hub'}
                 {tab === 'teacher' && 'Teacher Studio'}
@@ -307,62 +311,66 @@ function Dashboard({ adminStats, courses, enrollments, isAdmin, isAuthenticated,
           <p>Monitor revenue, enrollment spikes, and operational metrics across programs.</p>
         </article>
       </section>
+
+      {isLoading && (
+        <section className="inline-status-card">
+          <p className="eyebrow">Syncing</p>
+          <h3>Refreshing dashboard data from the API.</h3>
+        </section>
+      )}
     </main>
   )
 }
 
 Dashboard.propTypes = {
   adminStats: PropTypes.shape({
-    purchases_last_week: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     purchases_last_month: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    purchases_last_week: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     total_sell_current_month: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     total_sell_previous_month: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   }),
   courses: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      created_by: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
       department: PropTypes.string,
-      title: PropTypes.string,
       description: PropTypes.string,
-      price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      level: PropTypes.string,
-      published: PropTypes.bool,
-      teacher_email: PropTypes.string,
-      instructor_email: PropTypes.string,
-      teacher: PropTypes.shape({
-        email: PropTypes.string,
-      }),
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       instructor: PropTypes.shape({
         email: PropTypes.string,
       }),
+      instructor_email: PropTypes.string,
+      level: PropTypes.string,
       owner: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      created_by: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      published: PropTypes.bool,
+      teacher: PropTypes.shape({
+        email: PropTypes.string,
+      }),
+      teacher_email: PropTypes.string,
       teacher_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      title: PropTypes.string,
     }),
   ).isRequired,
   enrollments: PropTypes.arrayOf(
     PropTypes.shape({
+      amount_paid: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+      course_department: PropTypes.string,
+      course_title: PropTypes.string,
+      customer_name: PropTypes.string,
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       progress: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-      amount_paid: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-      course_title: PropTypes.string,
-      course_department: PropTypes.string,
-      customer_name: PropTypes.string,
       student_email: PropTypes.string,
     }),
   ).isRequired,
   isAdmin: PropTypes.bool.isRequired,
   isAuthenticated: PropTypes.bool.isRequired,
+  isLoading: PropTypes.bool.isRequired,
   isTeacher: PropTypes.bool.isRequired,
   onProgressUpdate: PropTypes.func.isRequired,
   user: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     email: PropTypes.string,
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }),
 }
+
 export default Dashboard
-
-
-
-
-

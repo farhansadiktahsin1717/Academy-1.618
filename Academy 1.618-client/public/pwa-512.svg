@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title>Academy 1.618 icon</title>
+  <desc>Abstract academy brand mark</desc>
+  <rect width="512" height="512" rx="120" fill="#10261c" />
+  <circle cx="256" cy="256" r="156" fill="#d99f4d" opacity="0.22" />
+  <path
+    d="M92 208 256 124l164 84-164 84-164-84Zm48 38v72c0 28 52 54 116 54s116-26 116-54v-72"
+    fill="none"
+    stroke="#f8f1e6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="28"
+  />
+  <path d="M420 220v98" fill="none" stroke="#d99f4d" stroke-linecap="round" stroke-width="28" />
+</svg>

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import SiteHeader from './components/SiteHeader'
+import SiteLayout from './components/SiteLayout'
+import About from './pages/About'
+import Contact from './pages/Contact'
 import Dashboard from './pages/Dashboard'
 import DashboardOverview from './pages/DashboardOverview'
 import Home from './pages/Home'
+import NotFound from './pages/NotFound'
 import './App.css'
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1'
 
@@ -17,13 +18,19 @@ const storage = {
   get refresh() {
     return localStorage.getItem('academy_refresh') || ''
   },
+  get theme() {
+    return localStorage.getItem('academy_theme') || 'light'
+  },
   setTokens(access, refresh) {
     localStorage.setItem('academy_access', access)
     localStorage.setItem('academy_refresh', refresh)
   },
-  clear() {
+  clearTokens() {
     localStorage.removeItem('academy_access')
     localStorage.removeItem('academy_refresh')
+  },
+  setTheme(theme) {
+    localStorage.setItem('academy_theme', theme)
   },
 }
 
@@ -32,7 +39,10 @@ async function apiFetch(path, options = {}, accessToken = '') {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
   }
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`
+  }
 
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -46,23 +56,29 @@ async function apiFetch(path, options = {}, accessToken = '') {
     throw new Error(message || 'Request failed')
   }
 
-  if (response.status === 204 || response.status === 205) return null
+  if (response.status === 204 || response.status === 205) {
+    return null
+  }
+
   return response.json()
 }
 
 function App() {
+  const [theme, setTheme] = useState(storage.theme)
   const [accessToken, setAccessToken] = useState(storage.access)
   const [refreshToken, setRefreshToken] = useState(storage.refresh)
   const [user, setUser] = useState(null)
   const [courses, setCourses] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [adminStats, setAdminStats] = useState(null)
-  const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [notice, setNotice] = useState({ type: '', text: '' })
   const [search, setSearch] = useState('')
   const [ordering, setOrdering] = useState('-created_at')
   const [checkoutCourse, setCheckoutCourse] = useState(null)
+  const [isCoursesLoading, setIsCoursesLoading] = useState(false)
+  const [isUserContextLoading, setIsUserContextLoading] = useState(false)
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false)
+  const [isCheckoutSubmitting, setIsCheckoutSubmitting] = useState(false)
   const [authForm, setAuthForm] = useState({
     email: '',
     password: '',
@@ -77,9 +93,23 @@ function App() {
     customer_address: '',
   })
 
+  const deferredSearch = useDeferredValue(search)
   const isAuthenticated = Boolean(accessToken)
   const isAdmin = Boolean(user?.is_staff)
   const isTeacher = user?.role === 'teacher'
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    storage.setTheme(theme)
+  }, [theme])
+
+  const showNotice = useCallback((type, text) => {
+    setNotice({ type, text })
+  }, [])
+
+  const clearNotice = useCallback(() => {
+    setNotice({ type: '', text: '' })
+  }, [])
 
   const enrollmentByCourse = useMemo(() => {
     const map = {}
@@ -89,35 +119,60 @@ function App() {
     return map
   }, [enrollments])
 
-  const featuredCourses = useMemo(() => courses.slice(0, 3), [courses])
+  const featuredCourses = useMemo(() => {
+    return courses.slice(0, 3)
+  }, [courses])
 
-  const handleAuthFormChange = (event) => {
-    const { name, value } = event.target
-    setAuthForm((prev) => ({ ...prev, [name]: value }))
-  }
+  const handleThemeToggle = useCallback(() => {
+    setTheme((current) => (current === 'light' ? 'dark' : 'light'))
+  }, [])
 
-  const handleCheckoutFormChange = (event) => {
+  const handleAuthFormChange = useCallback((event) => {
     const { name, value } = event.target
-    setCheckoutForm((prev) => ({ ...prev, [name]: value }))
-  }
+    setAuthForm((current) => ({ ...current, [name]: value }))
+  }, [])
+
+  const handleCheckoutFormChange = useCallback((event) => {
+    const { name, value } = event.target
+    setCheckoutForm((current) => ({ ...current, [name]: value }))
+  }, [])
+
+  const handleSearchChange = useCallback((value) => {
+    startTransition(() => {
+      setSearch(value)
+    })
+  }, [])
 
   const loadCourses = useCallback(async () => {
-    setLoading(true)
+    setIsCoursesLoading(true)
     try {
       const query = new URLSearchParams()
-      if (search.trim()) query.set('search', search.trim())
-      if (ordering) query.set('ordering', ordering)
-      const data = await apiFetch(`/courses/?${query.toString()}`, {}, accessToken)
+      if (deferredSearch.trim()) {
+        query.set('search', deferredSearch.trim())
+      }
+      if (ordering) {
+        query.set('ordering', ordering)
+      }
+
+      const suffix = query.toString() ? `?${query.toString()}` : ''
+      const data = await apiFetch(`/courses/${suffix}`, {}, accessToken)
       setCourses(data.results || data)
-    } catch (err) {
-      setError(err.message)
+    } catch (error) {
+      showNotice('error', error.message)
     } finally {
-      setLoading(false)
+      setIsCoursesLoading(false)
     }
-  }, [accessToken, ordering, search])
+  }, [accessToken, deferredSearch, ordering, showNotice])
 
   const loadUserContext = useCallback(async () => {
-    if (!accessToken) return
+    if (!accessToken) {
+      setUser(null)
+      setEnrollments([])
+      setAdminStats(null)
+      return
+    }
+
+    setIsUserContextLoading(true)
     try {
       const me = await apiFetch('/auth/users/me/', {}, accessToken)
       setUser(me)
@@ -131,10 +186,18 @@ function App() {
       } else {
         setAdminStats(null)
       }
-    } catch (err) {
-      setError(err.message)
+    } catch (error) {
+      storage.clearTokens()
+      setAccessToken('')
+      setRefreshToken('')
+      setUser(null)
+      setEnrollments([])
+      setAdminStats(null)
+      showNotice('error', error.message)
+    } finally {
+      setIsUserContextLoading(false)
     }
-  }, [accessToken])
+  }, [accessToken, showNotice])
 
   useEffect(() => {
     loadCourses()
@@ -144,52 +207,64 @@ function App() {
     loadUserContext()
   }, [loadUserContext])
 
-  const handleRegister = async (event) => {
-    event.preventDefault()
-    setError('')
-    setMessage('')
-    try {
-      await apiFetch('/auth/users/', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: authForm.email,
-          password: authForm.password,
-          re_password: authForm.re_password,
-          first_name: authForm.first_name,
-          last_name: authForm.last_name,
-          role: authForm.role,
-        }),
-      })
-      setMessage('Registration successful. Please activate account from your email.')
-    } catch (err) {
-      setError(err.message)
-    }
-  }
+  const handleRegister = useCallback(
+    async (event) => {
+      event.preventDefault()
+      clearNotice()
+      setIsAuthSubmitting(true)
 
-  const handleLogin = async (event) => {
-    event.preventDefault()
-    setError('')
-    setMessage('')
-    try {
-      const tokenData = await apiFetch('/auth/jwt/create/', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: authForm.email,
-          password: authForm.password,
-        }),
-      })
-      storage.setTokens(tokenData.access, tokenData.refresh)
-      setAccessToken(tokenData.access)
-      setRefreshToken(tokenData.refresh)
-      setMessage('Logged in successfully.')
-    } catch (err) {
-      setError(err.message)
-    }
-  }
+      try {
+        await apiFetch('/auth/users/', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: authForm.email,
+            password: authForm.password,
+            re_password: authForm.re_password,
+            first_name: authForm.first_name,
+            last_name: authForm.last_name,
+            role: authForm.role,
+          }),
+        })
+        showNotice('success', 'Registration successful. Check your email to activate the account.')
+      } catch (error) {
+        showNotice('error', error.message)
+      } finally {
+        setIsAuthSubmitting(false)
+      }
+    },
+    [authForm, clearNotice, showNotice],
+  )
 
-  const handleLogout = async () => {
-    setError('')
-    setMessage('')
+  const handleLogin = useCallback(
+    async (event) => {
+      event.preventDefault()
+      clearNotice()
+      setIsAuthSubmitting(true)
+
+      try {
+        const tokenData = await apiFetch('/auth/jwt/create/', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: authForm.email,
+            password: authForm.password,
+          }),
+        })
+        storage.setTokens(tokenData.access, tokenData.refresh)
+        setAccessToken(tokenData.access)
+        setRefreshToken(tokenData.refresh)
+        showNotice('success', 'Logged in successfully.')
+      } catch (error) {
+        showNotice('error', error.message)
+      } finally {
+        setIsAuthSubmitting(false)
+      }
+    },
+    [authForm.email, authForm.password, clearNotice, showNotice],
+  )
+
+  const handleLogout = useCallback(async () => {
+    clearNotice()
+
     try {
       if (refreshToken) {
         await apiFetch(
@@ -201,91 +276,116 @@ function App() {
           accessToken,
         )
       }
-    } catch (err) {
-      setError(err.message)
+    } catch (error) {
+      showNotice('error', error.message)
     } finally {
-      storage.clear()
+      storage.clearTokens()
       setAccessToken('')
       setRefreshToken('')
       setUser(null)
       setEnrollments([])
       setAdminStats(null)
       setCheckoutCourse(null)
-      setMessage('Logged out.')
+      showNotice('success', 'Logged out.')
     }
-  }
+  }, [accessToken, clearNotice, refreshToken, showNotice])
 
-  const handleEnrollProgressUpdate = async (enrollmentId, progress) => {
-    try {
-      await apiFetch(
-        `/enrollments/${enrollmentId}/`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ progress: Number(progress) }),
-        },
-        accessToken,
-      )
-      await loadUserContext()
-    } catch (err) {
-      setError(err.message)
-    }
-  }
+  const handleEnrollProgressUpdate = useCallback(
+    async (enrollmentId, progress) => {
+      clearNotice()
 
-  const openCheckout = (course) => {
-    if (!isAuthenticated) {
-      setError('Please login first, then click Buy.')
-      return
-    }
-    setError('')
-    setMessage('')
-    setCheckoutCourse(course)
-    setCheckoutForm((prev) => ({
-      ...prev,
-      customer_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '',
-    }))
-  }
+      try {
+        await apiFetch(
+          `/enrollments/${enrollmentId}/`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ progress: Number(progress) }),
+          },
+          accessToken,
+        )
+        await loadUserContext()
+        showNotice('success', 'Progress updated.')
+      } catch (error) {
+        showNotice('error', error.message)
+      }
+    },
+    [accessToken, clearNotice, loadUserContext, showNotice],
+  )
 
-  const handlePaymentInit = async (event) => {
-    event.preventDefault()
-    if (!checkoutCourse) return
-    setError('')
-    setMessage('')
-    try {
-      const data = await apiFetch(
-        '/payments/initiate/',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            course_id: checkoutCourse.id,
-            customer_name: checkoutForm.customer_name,
-            customer_phone: checkoutForm.customer_phone,
-            customer_address: checkoutForm.customer_address,
-          }),
-        },
-        accessToken,
-      )
-
-      if (data.payment_url) {
-        window.location.href = data.payment_url
+  const openCheckout = useCallback(
+    (course) => {
+      if (!isAuthenticated) {
+        showNotice('error', 'Please log in first, then return to complete enrollment.')
         return
       }
-      setMessage('Payment initialized.')
-    } catch (err) {
-      setError(err.message)
-    }
-  }
+
+      clearNotice()
+      setCheckoutCourse(course)
+      setCheckoutForm((current) => ({
+        ...current,
+        customer_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '',
+      }))
+    },
+    [clearNotice, isAuthenticated, showNotice, user],
+  )
+
+  const handlePaymentInit = useCallback(
+    async (event) => {
+      event.preventDefault()
+
+      if (!checkoutCourse) {
+        return
+      }
+
+      clearNotice()
+      setIsCheckoutSubmitting(true)
+
+      try {
+        const data = await apiFetch(
+          '/payments/initiate/',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              course_id: checkoutCourse.id,
+              customer_name: checkoutForm.customer_name,
+              customer_phone: checkoutForm.customer_phone,
+              customer_address: checkoutForm.customer_address,
+            }),
+          },
+          accessToken,
+        )
+
+        if (data.payment_url) {
+          window.location.href = data.payment_url
+          return
+        }
+
+        await loadUserContext()
+        showNotice('success', 'Payment initialized successfully.')
+      } catch (error) {
+        showNotice('error', error.message)
+      } finally {
+        setIsCheckoutSubmitting(false)
+      }
+    },
+    [accessToken, checkoutCourse, checkoutForm, clearNotice, loadUserContext, showNotice],
+  )
 
   return (
     <BrowserRouter>
-      <div className="app-shell">
-        <SiteHeader isAuthenticated={isAuthenticated} onLogout={handleLogout} />
-        {(error || message) && (
-          <div className="alerts">
-            {error && <div className="alert error">{error}</div>}
-            {message && <div className="alert success">{message}</div>}
-          </div>
-        )}
-        <Routes>
+      <Routes>
+        <Route
+          element={
+            <SiteLayout
+              isAuthenticated={isAuthenticated}
+              notice={notice}
+              onClearNotice={clearNotice}
+              onLogout={handleLogout}
+              onToggleTheme={handleThemeToggle}
+              theme={theme}
+            />
+          }
+        >
           <Route
             path="/"
             element={
@@ -296,15 +396,17 @@ function App() {
                 enrollmentByCourse={enrollmentByCourse}
                 featuredCourses={featuredCourses}
                 isAuthenticated={isAuthenticated}
-                loading={loading}
+                isAuthSubmitting={isAuthSubmitting}
+                isCheckoutSubmitting={isCheckoutSubmitting}
+                isCoursesLoading={isCoursesLoading}
                 onAuthFormChange={handleAuthFormChange}
                 onCheckoutFormChange={handleCheckoutFormChange}
                 onLogin={handleLogin}
                 onLogout={handleLogout}
+                onOrderingChange={setOrdering}
                 onPaymentInit={handlePaymentInit}
                 onRegister={handleRegister}
-                onSearchChange={setSearch}
-                onOrderingChange={setOrdering}
+                onSearchChange={handleSearchChange}
                 openCheckout={openCheckout}
                 ordering={ordering}
                 search={search}
@@ -313,6 +415,8 @@ function App() {
               />
             }
           />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
           <Route
             path="/dashboard"
             element={
@@ -322,6 +426,7 @@ function App() {
                 enrollments={enrollments}
                 isAdmin={isAdmin}
                 isAuthenticated={isAuthenticated}
+                isLoading={isCoursesLoading || isUserContextLoading}
                 isTeacher={isTeacher}
                 user={user}
               />
@@ -336,28 +441,18 @@ function App() {
                 enrollments={enrollments}
                 isAdmin={isAdmin}
                 isAuthenticated={isAuthenticated}
+                isLoading={isCoursesLoading || isUserContextLoading}
                 isTeacher={isTeacher}
                 onProgressUpdate={handleEnrollProgressUpdate}
                 user={user}
               />
             }
           />
-        </Routes>
-        <footer className="site-footer">
-          <p>(c) {new Date().getFullYear()} Academy 1.618</p>
-        </footer>
-      </div>
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
     </BrowserRouter>
   )
 }
 
 export default App
-
-
-
-
-
-
-
-
-
